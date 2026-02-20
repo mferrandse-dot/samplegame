@@ -1,0 +1,14 @@
+//
+// Created by Mathi on 16/02/2026.
+//
+
+#ifndef SAMPLEGAME_CONSTANTS_H
+#define SAMPLEGAME_CONSTANTS_H
+
+#define WINDOW_WIDTH (800)
+#define WINDOW_HEIGHT (600)
+#define WINDOW_TITLE "Sample Game"
+
+#define MAX_FRAMES_IN_FLIGHT 2
+
+#endif //SAMPLEGAME_CONSTANTS_H
