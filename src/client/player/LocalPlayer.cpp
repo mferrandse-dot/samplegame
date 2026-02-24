@@ -20,6 +20,9 @@ LocalPlayer::LocalPlayer()
 void LocalPlayer::UpdateLoop()
 {
 
+  auto rend = ServiceLocator::GetService<Renderer*>();
+  //rend->CreateCommandPool();
+
   while (!stopLoop)
   {
     Update();
@@ -47,16 +50,23 @@ void LocalPlayer::Update()
   if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
     camera.ProcessKeyboard(RIGHT, deltaTime);
 
-  std::string pipelines[] = {"default", "spooky"};
-  if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS)
-  {
-    ServiceLocator::GetService<Renderer*>()->ChangeGraphicsPipeline(pipelines[0]);
-  }
+  // PROOF OF CONCEPT FOR RUNTIME SHADER CHANGE/PIPELINE
+  // std::string pipelines[] = {"default", "spooky"};
+  // if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS)
+  // {
+  //   ServiceLocator::GetService<Renderer*>()->ChangeGraphicsPipeline(pipelines[0]);
+  // }
+  //
+  // if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS)
+  // {
+  //   ServiceLocator::GetService<Renderer*>()->ChangeGraphicsPipeline(pipelines[1]);
+  // }
 
-  if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS)
-  {
-    ServiceLocator::GetService<Renderer*>()->ChangeGraphicsPipeline(pipelines[1]);
-  }
+  // PROOF OF CONCEPT OF ADDING A 3D OBJECT IN RUNTIME
+  // if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS)
+  // {
+  //   ServiceLocator::GetService<Renderer*>()->CreateVertexBufferObject(&vertices, &indices);
+  // }
 
 
   double xpos;
@@ -81,5 +91,5 @@ void LocalPlayer::Update()
 
   camera.ProcessMouseMovement((float)xoffset, (float)yoffset);
 
-  location.position = camera.Position;
+  location.SetPosition(camera.Position);
 }

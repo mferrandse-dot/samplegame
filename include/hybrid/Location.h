@@ -7,12 +7,23 @@
 
 #include <glm/glm.hpp>
 
+#include "glm/ext/matrix_transform.hpp"
+
 class Location
 {
 public:
 
-  glm::vec3 position = glm::vec3(1.0f);
+  inline void SetPosition(glm::vec3 _position) {position = _position;}
+  inline glm::vec3 GetPosition() {return position;}
 
+  inline glm::mat4 GetModelMatrix() {
+    return glm::translate(glm::mat4(1.f), position);
+  }
+
+private:
+
+  glm::vec3 position = glm::vec3(1.0f);
+  glm::mat4 modelMatrix = glm::mat4(1.0f);
 };
 
 #endif //SAMPLEGAME_LOCATION_H

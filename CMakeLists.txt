@@ -26,24 +26,30 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(glslang)
 
+
 add_executable(samplegame
+
         src/client/main.cpp
+
         src/client/renderer/RendererInit.cpp
         src/client/renderer/RendererDraw.cpp
         src/client/renderer/SpirvHelper.cpp
         src/client/renderer/Vertex.cpp
         src/client/renderer/UniformBufferObject.cpp
+        src/client/Chunk.cpp
+
         src/client/player/LocalPlayer.cpp
-        src/hybrid/ServiceLocator.cpp
         src/client/player/Camera.cpp
+
+        src/hybrid/ServiceLocator.cpp
+        src/hybrid/SceneObject.cpp
+        src/hybrid/TerrainGenerator.cpp
+
         src/client/Utils/stb_image_impl.cpp
 )
 
-file(GLOB VULKAN_LIB "$ENV{VULKAN_SDK}/Lib/*.lib")
-
 target_link_libraries(samplegame
         PRIVATE glfw
-        #PRIVATE ${VULKAN_LIB}
         PRIVATE $ENV{VULKAN_SDK}/Lib/vulkan-1.lib
         PRIVATE glslang
         PRIVATE glm

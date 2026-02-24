@@ -11,6 +11,7 @@
 #include <hybrid/Location.h>
 
 #include "Camera.h"
+#include "client/renderer/Vertex.h"
 
 /*
  * Class that receive a scene object then handle movement and interactions
@@ -35,6 +36,16 @@ class LocalPlayer
     Camera camera;
     Location location;
     bool stopLoop = false;
+
+  std::vector<Vertex>vertices = {
+      {{-1.f, -2.5f, -1.f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.f}},
+      {{1.f, -2.5f, -1.f}, {1.0f, 0.0f, 0.0f}, {.0f, 0.f}},
+      {{1.f, -0.5f, -1.f}, {0.0f, 0.0f, 1.0f}, {.0f, 1.f}},
+      {{-1.f, -0.5f, -1.f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.f}},
+  };
+  std::vector<uint32_t>indices = {
+      0, 1, 2, 2, 3, 0
+  };
 };
 
 

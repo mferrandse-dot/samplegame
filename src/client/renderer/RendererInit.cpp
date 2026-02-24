@@ -65,16 +65,11 @@ Renderer::Renderer()
   this->CreateDescriptorPool();
   this->CreateDescriptorSets();
 
-
   this->CreateGraphicsPipeline("default");
-  this->CreateGraphicsPipeline("spooky");
 
   this->CreateFramebuffers();
 
-  this->CreateVertexBuffer(&vertices);
-  this->CreateIndexBuffer(&indices);
-  this->CreateVertexBuffer(&vertices2);
-  this->CreateIndexBuffer(&indices2);
+  this->CreateVertexBufferObject(&vertices, &indices, nullptr);
 
   this->CreateCommandBuffers();
 
@@ -508,6 +503,7 @@ void Renderer::CreateGraphicsPipeline(std::string shadername)
     throw std::runtime_error("failed to load fragment shader!");
   }
 
+
   VkShaderModule vertShaderModule = this->CreateShaderModule<unsigned int>(vertexShaderByte);
   VkShaderModule fragShaderModule = this->CreateShaderModule<unsigned int>(fragmentShaderByte);
 
@@ -615,12 +611,17 @@ void Renderer::CreateGraphicsPipeline(std::string shadername)
   colorBlending.blendConstants[2] = 0.0f; // Optional
   colorBlending.blendConstants[3] = 0.0f; // Optional
 
+  VkPushConstantRange range = {};
+  range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+  range.offset = 0;
+  range.size = 64;
+
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipelineLayoutInfo.setLayoutCount = 1; // Optional
   pipelineLayoutInfo.pSetLayouts =  &descriptorSetLayout; // Optional
-  pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
-  pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
+  pipelineLayoutInfo.pushConstantRangeCount = 1; // Optional
+  pipelineLayoutInfo.pPushConstantRanges = &range; // Optional
 
   if (vkCreatePipelineLayout(this->device, &pipelineLayoutInfo, nullptr, &(this->pipelineLayouts.at(currentGraphicsPipeline))) != VK_SUCCESS) {
     throw std::runtime_error("failed to create pipeline layout!");
@@ -706,9 +707,19 @@ void Renderer::CreateCommandPool()
   }
 }
 
-void Renderer::CreateVertexBuffer(std::vector<Vertex>* vertices, uint32_t id)
+UUIDv4::UUID Renderer::CreateVertexBufferObject(std::vector<Vertex> *vbo, std::vector<uint32_t> *ebo, Location* model) {
+  static UUIDv4::UUIDGenerator<std::mt19937_64> uuidGenerator;
+  UUIDv4::UUID uuid = uuidGenerator.getUUID();
+  vertexBufferObjects[uuid];
+  vertexBufferObjects.at(uuid).location = model;
+  this->CreateVertexBuffer(vbo, uuid);
+  this->CreateIndexBuffer(ebo, uuid);
+  return uuid;
+}
+
+void Renderer::CreateVertexBuffer(std::vector<Vertex>* vertices, UUIDv4::UUID uuid)
 {
-  auto vbo = &vertexBufferObjects[id];
+  auto vbo = &vertexBufferObjects[uuid];
   VkDeviceSize bufferSize = sizeof(vertices->at(0)) * vertices->size();
 
   VkBuffer stagingBuffer;
@@ -731,9 +742,10 @@ void Renderer::CreateVertexBuffer(std::vector<Vertex>* vertices, uint32_t id)
   vkFreeMemory(device, stagingBufferMemory, nullptr);
 }
 
-void Renderer::CreateIndexBuffer(std::vector<uint32_t>* ebo, uint32_t id)
+void Renderer::CreateIndexBuffer(std::vector<uint32_t>* ebo, UUIDv4::UUID uuid)
 {
-  this->indices_storage.push_back(ebo);
+  auto vbo = &vertexBufferObjects[uuid];
+  vbo->indices_storage = ebo;
 
   VkDeviceSize bufferSize = sizeof(ebo->at(0)) * ebo->size();
 
@@ -746,15 +758,12 @@ void Renderer::CreateIndexBuffer(std::vector<uint32_t>* ebo, uint32_t id)
   memcpy(data, ebo->data(), (size_t) bufferSize);
   vkUnmapMemory(device, stagingBufferMemory);
 
-  int index= indexBuffers.size()+1;
-  indexBuffers.resize(index);
-  indexBuffersMemory.resize(index);
   CreateBuffer(bufferSize,
     VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-    indexBuffers.at(index-1), indexBuffersMemory.at(index-1));
+    vbo->indexBuffer, vbo->indexBufferMemory);
 
-  CopyBuffer(stagingBuffer, indexBuffers.at(index-1), bufferSize);
+  CopyBuffer(stagingBuffer, vbo->indexBuffer, bufferSize);
 
   vkDestroyBuffer(device, stagingBuffer, nullptr);
   vkFreeMemory(device, stagingBufferMemory, nullptr);
@@ -879,20 +888,12 @@ void Renderer::Cleanup()
 
   vkDestroyDescriptorPool(device, descriptorPool, nullptr);
 
-  for (int i = 0; i < indexBuffers.size(); i++)
+  for (auto &it: vertexBufferObjects)
   {
-    vkDestroyBuffer(this->device, this->indexBuffers.at(i), nullptr);
-    vkFreeMemory(this->device, this->indexBuffersMemory.at(i), nullptr);
+    this->CleanVertexBufferObjectData(it.first);
   }
 
-
-  for (int i = 0 ; i < vertexBuffers.size(); i++)
-  {
-    vkDestroyBuffer(this->device, this->vertexBuffers.at(i), nullptr);
-    vkFreeMemory(this->device, this->vertexBuffersMemory.at(i), nullptr);
-  }
-
-  vkDestroyCommandPool(this->device, this->commandPool, nullptr);
+  vkDestroyCommandPool(this->device, commandPool, nullptr);
 
   this->CleanupSwapChain();
   vkDestroyDescriptorSetLayout(this->device, this->descriptorSetLayout, nullptr);

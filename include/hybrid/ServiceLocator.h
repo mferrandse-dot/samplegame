@@ -9,6 +9,9 @@
 #include <unordered_map>
 #include <typeindex>
 #include <cassert>
+#include <iostream>
+#include <ostream>
+#include <string>
 
 class ServiceLocator {
 public:
@@ -20,6 +23,12 @@ public:
   template<typename T>
   static T GetService() {
     auto it = instance.find(std::type_index(typeid(T)));
+
+    std::string s = "Service not registered :";
+    s.append(typeid(T).name());
+    if (it == instance.end()) {
+      std::cout << s.c_str() << std::endl;
+    }
     assert(it != instance.end() && "Service not registered");
     return reinterpret_cast<T>(it->second);
   }

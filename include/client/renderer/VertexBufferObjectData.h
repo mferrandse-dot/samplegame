@@ -8,6 +8,8 @@
 #include <vulkan/vulkan.h>
 #include <vector>
 
+#include "hybrid/Location.h"
+
 struct VertexBufferObjectData
 {
   VkBuffer vertexBuffer;
@@ -15,6 +17,7 @@ struct VertexBufferObjectData
   VkBuffer indexBuffer;
   VkDeviceMemory indexBufferMemory;
   std::vector<uint32_t>* indices_storage;
+  Location* location = nullptr; // used for position with a Location object can be null
 };
 
 #endif //SAMPLEGAME_VERTEXBUFFEROBJECTDATA_H

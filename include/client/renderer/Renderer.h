@@ -20,8 +20,10 @@
 #include "client/renderer/Vertex.h"
 
 #include <thread>
+#include <mutex>
 
 #include "VertexBufferObjectData.h"
+#include "hybrid/uuid/UUID-V4.hpp"
 
 #ifdef NDEBUG
     const bool enableValidationLayers = false;
@@ -53,6 +55,21 @@ public:
             currentGraphicsPipeline = newpi;
     };
 
+    UUIDv4::UUID CreateVertexBufferObject(std::vector<Vertex>* vbo, std::vector<uint32_t>* ebo, Location* loc);
+    inline VertexBufferObjectData* GetVertexBufferObjectData(UUIDv4::UUID id) {return &(vertexBufferObjects.at(id));}
+
+    inline void CleanVertexBufferObjectData(UUIDv4::UUID id) {
+        auto vbod = &(vertexBufferObjects.at(id));
+        vkDestroyBuffer(device, vbod->vertexBuffer, nullptr);
+        vkFreeMemory(device, vbod->vertexBufferMemory, nullptr);
+
+        vkDestroyBuffer(device, vbod->indexBuffer, nullptr);
+        vkFreeMemory(device, vbod->indexBufferMemory, nullptr);
+        vertexBufferObjects.erase(id);
+    }
+
+    void CreateCommandPool();
+
 private:
     void Cleanup();
     void Init();
@@ -76,11 +93,8 @@ private:
 
     void CreateFramebuffers();
 
-    void CreateCommandPool();
-
-    uint32_t CreateVertexBufferObject(std::vector<Vertex>* vbo, std::vector<uint32_t>* ebo);
-    void CreateVertexBuffer(std::vector<Vertex>* vbo, uint32_t id);
-    void CreateIndexBuffer(std::vector<uint32_t>* ebo,uint32_t id);
+    void CreateVertexBuffer(std::vector<Vertex>* vbo, UUIDv4::UUID id);
+    void CreateIndexBuffer(std::vector<uint32_t>* ebo,UUIDv4::UUID id);
 
     void CreateUniformBuffers();
     void CreateCommandBuffers();
@@ -147,6 +161,7 @@ private:
         VK_KHR_SWAPCHAIN_EXTENSION_NAME
       };
 
+    std::mutex queueMutex;
     VkQueue graphicsQueue{};
     VkQueue presentQueue;
 
@@ -178,7 +193,7 @@ private:
 
     uint32_t currentFrame = 0;
 
-    std::unordered_map<uint32_t, VertexBufferObjectData> vertexBufferObjects;
+    std::unordered_map<UUIDv4::UUID, VertexBufferObjectData> vertexBufferObjects;
 
     std::vector<VkBuffer> uniformBuffers;
     std::vector<VkDeviceMemory> uniformBuffersMemory;
@@ -206,16 +221,6 @@ public:
         {{-0.5f, 0.5f, 1.f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.f}},
     };
     std::vector<uint32_t> indices = {
-        0, 1, 2, 2, 3, 0
-    };
-
-    std::vector<Vertex> vertices2 = {
-        {{-1.f, -2.5f, -1.f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.f}},
-        {{1.f, -2.5f, -1.f}, {1.0f, 0.0f, 0.0f}, {.0f, 0.f}},
-        {{1.f, -0.5f, -1.f}, {0.0f, 0.0f, 1.0f}, {.0f, 1.f}},
-        {{-1.f, -0.5f, -1.f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.f}},
-    };
-    std::vector<uint32_t> indices2 = {
         0, 1, 2, 2, 3, 0
     };
 };

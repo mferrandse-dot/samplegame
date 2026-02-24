@@ -28,6 +28,8 @@
 
 #include <client/Utils/stb_image.h>
 
+#include "hybrid/TerrainGenerator.hpp"
+
 void Renderer::RecordCommandBuffer(VkCommandBuffer _commandBuffer, uint32_t imageIndex)
 {
   VkCommandBufferBeginInfo beginInfo{};
@@ -71,9 +73,36 @@ void Renderer::RecordCommandBuffer(VkCommandBuffer _commandBuffer, uint32_t imag
   scissor.extent = this->swapChainExtent;
   vkCmdSetScissor(_commandBuffer, 0, 1, &scissor);
 
+  this->UpdateUniformBuffer(this->currentFrame);
+
   // one draw call per vbo
-  for (auto it = vertexBufferObjects.begin(); it != vertexBufferObjects.end(); i++)
+  for (auto it = vertexBufferObjects.begin(); it != vertexBufferObjects.end(); it++)
   {
+    if (it->second.vertexBuffer == VK_NULL_HANDLE || it->second.indexBuffer == VK_NULL_HANDLE
+      || it->second.vertexBufferMemory == VK_NULL_HANDLE || it->second.indexBufferMemory == VK_NULL_HANDLE)
+      continue;
+
+    VkMemoryRequirements memRequirements;
+    vkGetBufferMemoryRequirements(device, it->second.vertexBuffer, &memRequirements);
+
+    if (memRequirements.size == 0)
+      continue;
+
+    VkMemoryRequirements memRequirementsIndices;
+    vkGetBufferMemoryRequirements(device, it->second.indexBuffer, &memRequirementsIndices);
+
+    if (memRequirementsIndices.size == 0)
+      continue;
+
+
+    glm::mat4 data = glm::mat4(1.0f);
+    if (it->second.location != nullptr)
+      data = it->second.location->GetModelMatrix();
+
+    uint32_t offset = 0;
+    uint32_t size = 64;
+    vkCmdPushConstants(_commandBuffer, pipelineLayouts.at(currentGraphicsPipeline), VK_SHADER_STAGE_VERTEX_BIT, offset, size, &data);
+
     VkBuffer vertexBuffer[] = {it->second.vertexBuffer};
     VkDeviceSize offsets[] = {0};
     auto indice = it->second.indices_storage;
@@ -97,13 +126,31 @@ void Renderer::RecordCommandBuffer(VkCommandBuffer _commandBuffer, uint32_t imag
 void Renderer::DrawLoop()
 {
     while(!glfwWindowShouldClose(this->window)) {
-    glfwPollEvents();
-    this->Draw();
+      glfwPollEvents();
+      this->Draw();
+
+      static int frameCount = 0;
+
+      double currentTime = glfwGetTime();
+      frameCount++;
+
+      static double lastTime = glfwGetTime();
+      int fps = 0;
+
+      if (currentTime - lastTime >= 1.0) {
+        fps = frameCount;
+        frameCount = 0;
+        lastTime = currentTime;
+
+        std::string windowTitle = "Sample Game : " + std::to_string(fps);
+        glfwSetWindowTitle(window, windowTitle.c_str());
+      }
     }
 }
 
 void Renderer::Draw()
 {
+  queueMutex.lock();
   vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
   uint32_t imageIndex;
@@ -116,8 +163,6 @@ void Renderer::Draw()
     throw std::runtime_error("failed to acquire swap chain image!");
   }
   vkResetFences(device, 1, &inFlightFences[currentFrame]);
-
-  this->UpdateUniformBuffer(this->currentFrame);
 
   vkResetCommandBuffer(commandBuffers[currentFrame],  0);
   RecordCommandBuffer(commandBuffers[currentFrame], imageIndex);
@@ -160,6 +205,7 @@ void Renderer::Draw()
   }
 
   currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+  queueMutex.unlock();
 }
 
 void Renderer::UpdateUniformBuffer(uint32_t currentImage)
@@ -171,11 +217,10 @@ void Renderer::UpdateUniformBuffer(uint32_t currentImage)
   float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
   UniformBufferObject ubo{};
-  ubo.model = glm::mat4(1.0f);
 
   static auto plr = ServiceLocator::GetService<LocalPlayer*>();
   ubo.view = plr->GetCamera()->GetViewMatrix();
-  ubo.proj = glm::perspective(glm::radians(plr->GetCamera()->Zoom), swapChainExtent.width / (float) swapChainExtent.height, 0.1f, 10.0f);
+  ubo.proj = glm::perspective(glm::radians(plr->GetCamera()->Zoom), swapChainExtent.width / (float) swapChainExtent.height, 0.1f, 1000.0f);
   ubo.proj[1][1] *= -1.f;
 
   memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
@@ -278,8 +323,10 @@ void Renderer::EndSingleTimeCommands(VkCommandBuffer commandBuffer)
   submitInfo.commandBufferCount = 1;
   submitInfo.pCommandBuffers = &commandBuffer;
 
+  queueMutex.lock();
   vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
   vkQueueWaitIdle(graphicsQueue);
+  queueMutex.unlock();
 
   vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
 }

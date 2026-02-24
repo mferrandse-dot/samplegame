@@ -13,7 +13,7 @@ class Vertex
 {
 public:
   glm::vec3 position;
-  glm::vec3 color;
+  glm::vec3 normal;
   glm::vec2 texCoord;
 
   static VkVertexInputBindingDescription GetBindingDescription();
